@@ -4,6 +4,8 @@
 4. Run `asdf install`
 5. Go to https://selleo.awsapps.com/start
 6. Run `aws configure sso`
+Pick the workshops app
+
 SSO start URL: https://selleo.awsapps.com/start
 SSO Region: eu-west-1
 CLI default client Region: eu-central-1
