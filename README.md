@@ -1,6 +1,6 @@
 1. Make sure that you have `asdf` installed
-2. Run `asdf add plugin terraform`
-3. Run `asdf add plugin awscli`
+2. Run `asdf plugin add terraform`
+3. Run `asdf plugin add awscli`
 4. Run `asdf install`
 5. Go to https://selleo.awsapps.com/start
 6. Run `aws configure sso`
