@@ -1,6 +1,8 @@
 locals {
-  app_folder = "app"
-  origin_id  = "app"
+  app_folder    = "app"
+  origin_id     = "app"
+  domain        = "workshops.selleo.app"
+  app_subdomain = "lpawlik"
 }
 
 resource "aws_s3_bucket" "frontend_application" {
@@ -82,5 +84,22 @@ resource "aws_cloudfront_distribution" "frontend_application" {
     geo_restriction {
       restriction_type = "none"
     }
+  }
+}
+
+data "aws_route53_zone" "workshops_selleo_app" {
+  name         = local.domain
+  private_zone = false
+}
+
+resource "aws_route53_record" "frontend_app" {
+  zone_id = data.aws_route53_zone.workshops_selleo_app.zone_id
+  name    = local.app_subdomain
+  type    = "A"
+
+  alias {
+    name                   = aws_cloudfront_distribution.frontend_application.domain_name
+    zone_id                = aws_cloudfront_distribution.frontend_application.hosted_zone_id
+    evaluate_target_health = true
   }
 }
