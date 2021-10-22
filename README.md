@@ -17,4 +17,5 @@ If it asks for profile name, set it to: selleo-workshops
 
 8. Run `terraform init`
 9. Run `terraform plan` and verify that everything works
+10. Update owner in `default_tags`.
 
