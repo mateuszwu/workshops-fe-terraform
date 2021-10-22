@@ -43,11 +43,14 @@ resource "aws_cloudfront_distribution" "frontend_application" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  aliases             = []
+  aliases             = ["${local.app_subdomain}.${local.domain}"]
   price_class         = "PriceClass_100"
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = false
+    acm_certificate_arn            = aws_acm_certificate.lpawlik_workshops_selleo_app.arn
+    minimum_protocol_version       = "TLSv1.2_2019"
+    ssl_support_method             = "sni-only"
   }
 
   origin {
@@ -102,4 +105,34 @@ resource "aws_route53_record" "frontend_app" {
     zone_id                = aws_cloudfront_distribution.frontend_application.hosted_zone_id
     evaluate_target_health = true
   }
+}
+
+resource "aws_acm_certificate" "lpawlik_workshops_selleo_app" {
+  provider = aws.global
+
+  domain_name       = "${local.app_subdomain}.${local.domain}"
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "lpawlik_workshops_selleo_app" {
+  provider = aws.global
+
+  for_each = {
+    for dvo in aws_acm_certificate.lpawlik_workshops_selleo_app.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = data.aws_route53_zone.workshops_selleo_app.zone_id
 }
