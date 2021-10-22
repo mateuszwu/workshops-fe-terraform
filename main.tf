@@ -23,7 +23,7 @@ data "aws_iam_policy_document" "frontend_application" {
 
     principals {
       type        = "AWS"
-      identifiers = ["*"]
+      identifiers = [aws_cloudfront_origin_access_identity.frontend_application.iam_arn]
     }
   }
 }
@@ -135,4 +135,68 @@ resource "aws_route53_record" "lpawlik_workshops_selleo_app" {
   ttl             = 60
   type            = each.value.type
   zone_id         = data.aws_route53_zone.workshops_selleo_app.zone_id
+}
+
+resource "aws_iam_user" "ci_user" {
+  name = "lpawlik-ci-user"
+}
+
+resource "aws_iam_access_key" "ci_user" {
+  user = aws_iam_user.ci_user.name
+}
+
+data "aws_iam_policy_document" "frontend_app_ci_s3_access" {
+  statement {
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [
+      aws_s3_bucket.frontend_application.arn
+    ]
+  }
+
+  statement {
+    actions = [
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+    resources = [
+      "${aws_s3_bucket.frontend_application.arn}/*"
+    ]
+  }
+}
+
+resource "aws_iam_policy" "frontend_app_ci_s3_access" {
+  name        = "lpawlik_ci_s3_access_policy"
+  description = "Allows CI user to sync files with s3"
+  policy      = data.aws_iam_policy_document.frontend_app_ci_s3_access.json
+}
+
+resource "aws_iam_user_policy_attachment" "frontend_app_ci_s3_access" {
+  user       = aws_iam_user.ci_user.name
+  policy_arn = aws_iam_policy.frontend_app_ci_s3_access.arn
+}
+
+data "aws_iam_policy_document" "frontend_app_ci_cdn_invalidation" {
+  statement {
+    actions = [
+      "cloudfront:CreateInvalidation"
+    ]
+
+    resources = [
+      aws_cloudfront_distribution.frontend_application.arn
+    ]
+  }
+}
+
+resource "aws_iam_policy" "frontend_app_ci_cdn_invalidation" {
+  name        = "lpawlik_ci_cf_invalidation_policy"
+  description = "Allows CI user to invalidate cloudfront cache"
+  policy      = data.aws_iam_policy_document.frontend_app_ci_cdn_invalidation.json
+}
+
+resource "aws_iam_user_policy_attachment" "frontend_app_ci_cdn_invalidation" {
+  user       = aws_iam_user.ci_user.name
+  policy_arn = aws_iam_policy.frontend_app_ci_cdn_invalidation.arn
 }
