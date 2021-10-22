@@ -1,4 +1,4 @@
-Workshops taks: https://gist.github.com/LukeP91/63e66f1acb23776bbeae481737c6f3b3
+# README
 
 1. Make sure that you have `asdf` installed
 2. Run `asdf plugin add terraform`
@@ -19,3 +19,6 @@ If it asks for profile name, set it to: selleo-workshops
 9. Run `terraform plan` and verify that everything works
 10. Update owner in `default_tags`.
 
+[Workshops taks](/Exercises.md)
+[Ember frontend app](https://github.com/jswob/devops-app)
+[Nextjs frontend app](https://github.com/LukeP91/react-devops-app)
