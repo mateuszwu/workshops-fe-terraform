@@ -10,10 +10,11 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-central-1"
+  alias  = "global"
+  region = "us-east-1"
   default_tags {
     tags = {
-      Owner     = "lpawlik"
+      Owner     = "mwieczorek"
       Workshops = "true"
     }
   }
