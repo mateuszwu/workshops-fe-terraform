@@ -37,6 +37,7 @@ resource "aws_cloudfront_distribution" "fe_app" {
   price_class         = "PriceClass_100"
   default_root_object = "index.html"
   is_ipv6_enabled     = true
+  aliases             = ["mwieczorek.workshops.selleo.app"]
 
   origin {
     domain_name = aws_s3_bucket.fe_app.bucket_regional_domain_name
@@ -119,4 +120,99 @@ resource "aws_acm_certificate" "fe_app" {
   lifecycle {
     create_before_destroy = true
   }
+}
+
+resource "aws_route53_record" "fe_app_cert" {
+  for_each = {
+    for dvo in aws_acm_certificate.fe_app.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = data.aws_route53_zone.fe_app.zone_id
+}
+
+resource "aws_iam_user" "ci_for_fe_app" {
+  name = "ci-for-fe-app"
+}
+
+data "aws_iam_policy_document" "ci_for_fe_app" {
+  version = "2012-10-17"
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:DeleteObject",
+      "s3:PutObject",
+    ]
+
+    resources = [
+      "${aws_s3_bucket.fe_app.arn}/*"
+    ]
+  }
+
+  statement {
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+
+    resources = [
+      aws_s3_bucket.fe_app.arn
+    ]
+  }
+}
+
+resource "aws_iam_policy" "ci_for_fe_app" {
+  name   = "ci-for-fe-app"
+  policy = data.aws_iam_policy_document.ci_for_fe_app.json
+}
+
+resource "aws_iam_user_policy_attachment" "ci_for_fe_app" {
+  user      = aws_iam_user.ci_for_fe_app.name
+  policy_arn = aws_iam_policy.ci_for_fe_app.arn
+}
+
+resource "aws_iam_access_key" "ci_for_fe_app" {
+  user = aws_iam_user.ci_for_fe_app.name
+}
+
+output "ci_user_id" {
+  value = aws_iam_access_key.ci_for_fe_app.id
+}
+
+output "ci_user_secret" {
+  value     = aws_iam_access_key.ci_for_fe_app.secret
+  sensitive = true
+}
+
+data "aws_iam_policy_document" "ci_for_fe_app_cloudfront" {
+  version = "2012-10-17"
+
+  statement {
+    actions = [
+      "cloudfront:CreateInvalidation",
+    ]
+
+    resources = [
+      aws_cloudfront_distribution.fe_app.arn
+    ]
+  }
+}
+
+resource "aws_iam_policy" "ci_for_fe_app_cloudfront" {
+  policy = data.aws_iam_policy_document.ci_for_fe_app_cloudfront.json
+}
+
+resource "aws_iam_user_policy_attachment" "ci_for_fe_app_cloudfront" {
+  user      = aws_iam_user.ci_for_fe_app.name
+  policy_arn = aws_iam_policy.ci_for_fe_app_cloudfront.arn
 }
