@@ -3,30 +3,12 @@ locals {
   app_folder   = "app"
 }
 
-resource "aws_s3_bucket" "fe_app" {
-  bucket = "mwieczorek-frontend-application-bucket"
-  acl    = "private"
-}
+module "s3" {
+  source = "./modules/s3"
 
-data "aws_iam_policy_document" "fe_app" {
-  version = "2012-10-17"
-
-  statement {
-    actions = [
-      "s3:GetObject",
-    ]
-    principals {
-      type        = "AWS"
-      identifiers = [aws_cloudfront_origin_access_identity.fe_app.iam_arn]
-    }
-
-    resources = ["${aws_s3_bucket.fe_app.arn}/${local.app_folder}/*"]
-  }
-}
-
-resource "aws_s3_bucket_policy" "fe_app" {
-  bucket = aws_s3_bucket.fe_app.id
-  policy = data.aws_iam_policy_document.fe_app.json
+  bucket_name = local.s3_origin_id
+  app_folder = local.app_folder
+  principals_identifiers = [aws_cloudfront_origin_access_identity.fe_app.iam_arn]
 }
 
 resource "aws_cloudfront_origin_access_identity" "fe_app" {
@@ -40,7 +22,7 @@ resource "aws_cloudfront_distribution" "fe_app" {
   aliases             = ["mwieczorek.workshops.selleo.app"]
 
   origin {
-    domain_name = aws_s3_bucket.fe_app.bucket_regional_domain_name
+    domain_name = module.s3.S3_bucket_regional_domain_name
     origin_id   = local.s3_origin_id
     origin_path = "/${local.app_folder}"
 
@@ -151,7 +133,7 @@ module "ci_user_2" {
 
 module "s3_write_policy_for_users" {
   source = "./modules/iam_s3_full_access_policy"
-  s3     = aws_s3_bucket.fe_app.arn
+  s3     = module.s3.S3_arn
   users = [
     module.ci_user_1.IAM_user_name,
     module.ci_user_2.IAM_user_name
