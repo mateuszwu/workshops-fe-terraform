@@ -139,80 +139,30 @@ resource "aws_route53_record" "fe_app_cert" {
   zone_id         = data.aws_route53_zone.fe_app.zone_id
 }
 
-resource "aws_iam_user" "ci_for_fe_app" {
-  name = "ci-for-fe-app"
+module "ci_user_1" {
+  source = "./modules/iam_user_with_access_key"
+  name   = "ci_user_1"
 }
 
-data "aws_iam_policy_document" "ci_for_fe_app" {
-  version = "2012-10-17"
-
-  statement {
-    effect = "Allow"
-    actions = [
-      "s3:GetObject",
-      "s3:DeleteObject",
-      "s3:PutObject",
-    ]
-
-    resources = [
-      "${aws_s3_bucket.fe_app.arn}/*"
-    ]
-  }
-
-  statement {
-    actions = [
-      "s3:ListBucket",
-      "s3:GetBucketLocation",
-    ]
-
-    resources = [
-      aws_s3_bucket.fe_app.arn
-    ]
-  }
+module "ci_user_2" {
+  source = "./modules/iam_user_with_access_key"
+  name   = "ci_user_2"
 }
 
-resource "aws_iam_policy" "ci_for_fe_app" {
-  name   = "ci-for-fe-app"
-  policy = data.aws_iam_policy_document.ci_for_fe_app.json
+module "s3_write_policy_for_users" {
+  source = "./modules/iam_s3_full_access_policy"
+  s3     = aws_s3_bucket.fe_app.arn
+  users = [
+    module.ci_user_1.IAM_user_name,
+    module.ci_user_2.IAM_user_name
+  ]
 }
 
-resource "aws_iam_user_policy_attachment" "ci_for_fe_app" {
-  user      = aws_iam_user.ci_for_fe_app.name
-  policy_arn = aws_iam_policy.ci_for_fe_app.arn
-}
-
-resource "aws_iam_access_key" "ci_for_fe_app" {
-  user = aws_iam_user.ci_for_fe_app.name
-}
-
-output "ci_user_id" {
-  value = aws_iam_access_key.ci_for_fe_app.id
-}
-
-output "ci_user_secret" {
-  value     = aws_iam_access_key.ci_for_fe_app.secret
-  sensitive = true
-}
-
-data "aws_iam_policy_document" "ci_for_fe_app_cloudfront" {
-  version = "2012-10-17"
-
-  statement {
-    actions = [
-      "cloudfront:CreateInvalidation",
-    ]
-
-    resources = [
-      aws_cloudfront_distribution.fe_app.arn
-    ]
-  }
-}
-
-resource "aws_iam_policy" "ci_for_fe_app_cloudfront" {
-  policy = data.aws_iam_policy_document.ci_for_fe_app_cloudfront.json
-}
-
-resource "aws_iam_user_policy_attachment" "ci_for_fe_app_cloudfront" {
-  user      = aws_iam_user.ci_for_fe_app.name
-  policy_arn = aws_iam_policy.ci_for_fe_app_cloudfront.arn
+module "cloudfront_invalidation_access2" {
+  source     = "./modules/iam_cloudfront_invalidate_policy"
+  cloudfront = aws_cloudfront_distribution.fe_app.arn
+  users = [
+    module.ci_user_1.IAM_user_name,
+    module.ci_user_2.IAM_user_name
+  ]
 }
